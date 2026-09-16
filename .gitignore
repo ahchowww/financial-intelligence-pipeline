@@ -216,3 +216,18 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ============================================================
+# Project-specific ignores
+# ============================================================
+
+# Financial datasets downloaded/generated locally
+data/raw/
+data/processed/
+
+# VS Code local settings
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
