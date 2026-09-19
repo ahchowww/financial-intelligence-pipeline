@@ -2,7 +2,13 @@ from typing import Any
 
 import pandas as pd
 
+"""
+Take one XBRL financial concept from SEC company facts,
+convert its observations into a table,
+clean important date columns, calc. reporting-period length, 
+& keep only normal SEC financial filings
 
+"""
 def extract_concept(
         company_facts: dict[str, Any],
         concept: str,
@@ -46,10 +52,37 @@ def extract_concept(
         df["period_days"] =(
             df["end"] - df["start"]
         ).dt.days + 1
+
+    df["duration_type"] = (
+        df["period_days"]
+        .apply(classify_duration)
+    )
     
     return df
 
 
+def classify_duration(
+        period_days: int,
+) -> str:
+    """
+    Classify a duration fact by approximate reporting period
+    """
+
+    if 75 <= period_days <= 105:
+        return "quarter"
+
+    if 150 <= period_days <= 200:
+        return "half_year"
+
+    if 240 <= period_days <= 300:
+        return "nine_month"
+
+    if 330 <= period_days <= 380:
+        return "annual"
+
+    return "other"
+
+    
 def filter_financial_filings(
         df: pd.DataFrame,
 ) -> pd.DataFrame:

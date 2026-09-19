@@ -16,8 +16,7 @@ class SECClient:
 
         if not user_agent:
             raise ValueError(
-                "SEC_USER_AGENT is missing."
-                "Add it to your .env file."
+                "SEC_USER_AGENT is missing. Add it to your .env file."
             )
 
         self.headers ={
@@ -28,6 +27,8 @@ class SECClient:
     def get_company_facts(self, cik: str) -> dict[str, Any]:
         """
         Retrieve all XBRL company facts for one SEC registrant.
+        Input: CIK
+        Output: SEC company facts dictionary
 
         Parameters
         -----------------
@@ -47,6 +48,7 @@ class SECClient:
             f"companyfacts/CIK{cik}.json"
         )
 
+        # API request
         response = requests.get(
             url,
             headers=self.headers,

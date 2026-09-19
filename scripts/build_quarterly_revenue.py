@@ -1,9 +1,13 @@
 import json
 from pathlib import Path
 
-from src.processing.xbrl import (
+from src.processing.xbrl import(
     extract_concept,
     filter_financial_filings,
+)
+
+from src.processing.quarterly import(
+    build_quarterly_series,
 )
 
 from src.processing.metrics import NORMALIZED_METRICS
@@ -14,14 +18,15 @@ RAW_DATA_PATH = Path(
 )
 
 OUTPUT_PATH = Path(
-    "data/processed/tsla_revenue.csv"
+    "data/processed/tsla_quarterly_revenue.csv"
 )
 
 REVENUE_CONFIG = NORMALIZED_METRICS["revenue"]
 
+
 def main() -> None:
     with RAW_DATA_PATH.open(
-        "r",
+        "r", 
         encoding="utf-8",
     ) as file:
         data = json.load(file)
@@ -34,61 +39,38 @@ def main() -> None:
 
     revenue = filter_financial_filings(revenue)
 
-    print(revenue.head())
+    quarterly = build_quarterly_series(revenue)
 
-    print("\nColumns:")
-    print(revenue.columns.tolist())
-
-    print("\nNumber of rows:")
-    print(len(revenue))
-
-    print("\nForms:")
-    print(revenue["form"].value_counts())
-
-
-    # inspect useful SEC fields
-    useful_columns = [
+    columns = [
+        "year",
+        "quarter",
         "start",
         "end",
         "val",
-        "form",
         "filed",
-        "fy",
-        "fp",
-        "frame",
-        "period_days",
-        "duration_type",
+        "form",
+        "derived",
+        "source_method",
     ]
-
-    # Some SEC facts may not contain every column,
-    # so only keep columns that actually exist.
-    available_columns = [
-        column
-        for column in useful_columns
-        if column in revenue.columns
-    ]
-
-    print("\n=== Latest 30 Revenue Observations ===")
 
     print(
-        revenue[available_columns]
-        .tail(30)
+        quarterly[columns]
         .to_string(index=False)
     )
 
-
+    # Save the result
     OUTPUT_PATH.parent.mkdir(
         parents=True,
         exist_ok=True,
     )
 
-    revenue.to_csv(
+    quarterly.to_csv(
         OUTPUT_PATH,
         index=False,
     )
 
     print(
-        f"\nSaved revenue data to {OUTPUT_PATH}"
+        f"\nSaved quarterly revenue to: {OUTPUT_PATH}"
     )
 
 
