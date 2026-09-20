@@ -3,6 +3,10 @@ from pathlib import Path
 
 import pandas as pd
 
+"""
+search all revenue-related US-GAAP concept,
+then check which concept contain data for 2019-2022
+"""
 
 RAW_DATA_PATH = Path(
     "data/raw/tsla_company_facts.json"
@@ -121,13 +125,11 @@ def main() -> None:
         # SEC may return None,
         # so convert None to an empty string.
         label = (
-            concept_data.get("label")
-            or ""
+            concept_data.get("label") or ""
         )
 
         description = (
-            concept_data.get("description")
-            or ""
+            concept_data.get("description") or ""
         )
 
         searchable_text = " ".join(
@@ -202,8 +204,7 @@ def main() -> None:
         max_date = df["end"].max()
 
         label = (
-            concept_data.get("label")
-            or "N/A"
+            concept_data.get("label") or "N/A"
         )
 
         print("=" * 80)

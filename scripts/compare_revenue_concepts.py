@@ -8,6 +8,13 @@ from src.processing.xbrl import (
     filter_financial_filings,
 )
 
+"""
+compare the candidate tags directly
+
+input: raw SEC data + concept name
+↓ prepare_concept()
+output: cleaner DataFrame for that concept
+"""
 
 RAW_DATA_PATH = Path(
     "data/raw/tsla_company_facts.json"
@@ -65,7 +72,6 @@ def main() -> None:
         data = json.load(file)
 
     for concept in CONCEPTS:
-
         print("\n")
         print("=" * 80)
         print(f"Concept: {concept}")

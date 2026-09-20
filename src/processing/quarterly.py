@@ -1,13 +1,15 @@
 import pandas as pd
 
+"""
+Take SEC duration facts and turn them into one clean revenue value for each quarter. 
+"""
+
 def select_direct_quarter_facts(
         df: pd.DataFrame,
 ) -> pd.DataFrame:
     """
-    Select direct single-quarter facts and keep the earliest filing 
-    for each financial period  
+    Select direct single-quarter facts and keep the earliest filing for each period. 
     """
-
     quarterly = df[
         df["duration_type"] == "quarter"
     ].copy()
@@ -59,7 +61,6 @@ def derive_q4_from_annual(
 ) -> pd.DataFrame:
     """
     Derive Q4 using:
-
         Q4 = full-year value - nine-month cumulative value
 
     The Q4 filing date is the annual 10-K filing date.
@@ -142,15 +143,13 @@ def derive_q4_from_annual(
     # 5. Calculate Q4
     # --------------------------------------------------
     merged["val"] = (
-        merged["val_fy"]
-        - merged["val_9m"]
+        merged["val_fy"] - merged["val_9m"]
     )
 
     merged["quarter"] = "Q4"
 
     merged["start"] = (
-        merged["end_9m"]
-        + pd.Timedelta(days=1)
+        merged["end_9m"] + pd.Timedelta(days=1)
     )
 
     merged["end"] = merged["end_fy"]

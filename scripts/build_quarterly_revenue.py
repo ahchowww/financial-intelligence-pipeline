@@ -12,6 +12,14 @@ from src.processing.quarterly import(
 
 from src.processing.metrics import NORMALIZED_METRICS
 
+"""
+Load raw SEC data
+-> extract revenue
+-> keep relevant filings
+-> convert to quarterly series
+-> print result
+-> save csv
+"""
 
 RAW_DATA_PATH = Path(
     "data/raw/tsla_company_facts.json"
@@ -39,6 +47,7 @@ def main() -> None:
 
     revenue = filter_financial_filings(revenue)
 
+    # mixed SEC observations -> proper quarterly time series
     quarterly = build_quarterly_series(revenue)
 
     columns = [

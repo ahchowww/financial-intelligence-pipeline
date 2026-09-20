@@ -6,12 +6,17 @@ from src.processing.xbrl import(
     filter_financial_filings,
 )
 
+"""
+which observations are quarter/YTD/FY?
+"""
+
+
 RAW_DATA_PATH = Path(
     "data/raw/tsla_company_facts.json"
 )
 
 REVENUE_CONCEPT = (
-    "RevenueFromContractWithCustomerExcludingAssessedTax"
+    "Revenues"
 )
 
 def main() -> None:
