@@ -121,7 +121,7 @@ def derive_q4_from_annual(
         suffixes=("_fy", "_9m"),
     )
 
-    print("\n=== DEBUG: FY / 9M matches ===")
+    # print("\n=== DEBUG: FY / 9M matches ===")
 
     if merged.empty:
         print("No matching FY and 9M years.")
@@ -223,7 +223,7 @@ def build_quarterly_series(
     # 2. Potential derived Q4 facts
     derived_q4 = derive_q4_from_annual(df)
 
-    print("\n=== DEBUG: Derived Q4 ===")
+    # print("\n=== DEBUG: Derived Q4 ===")
 
     if derived_q4.empty:
         print("No derived Q4 rows were created.")
