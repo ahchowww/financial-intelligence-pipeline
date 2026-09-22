@@ -22,4 +22,12 @@ NORMALIZED_METRICS = {
         "fact_type": "duration",
         "nonnegative_expected": False,
     },
+
+    "net_income": {
+        "display_name": "Net Income",
+        "primary_concept": "NetIncomeLoss",
+        "unit": "USD",
+        "fact_type": "duration",
+        "nonnegative_expected": False,
+    },
 }
