@@ -636,3 +636,175 @@ def validate_quarterly_revenue(
     print("One or more validation checks failed.")
 
     return False
+
+
+def validate_quarterly_duration_metric(
+        quarterly_df: pd.DataFrame,
+        source_facts: pd.DataFrame,
+        metric_name: str,
+        require_nonnegative: bool = False,
+) -> bool:
+    """
+    Validate a quarterly duration-based financial metric.
+    """
+
+    print("\n" + "=" * 60)
+
+    print(
+        f"QUARTERLY {metric_name.upper()} "
+        f"VALIDATION"
+    )
+
+    print("=" * 60)
+
+    results = [
+        validate_no_duplicate_quarters(
+            quarterly_df
+        ),
+
+        validate_no_missing_values(
+            quarterly_df
+        ),
+
+        validate_filing_after_period_end(
+            quarterly_df
+        ),
+
+        validate_complete_years(
+            quarterly_df
+        ),
+
+        validate_chronological_order(
+            quarterly_df
+        ),
+
+        validate_source_metadata(
+            quarterly_df
+        ),
+
+        validate_against_half_year_facts(
+            quarterly_df,
+            source_facts,
+        ),
+
+        validate_against_nine_month_facts(
+            quarterly_df,
+            source_facts,
+        ),
+
+        validate_against_annual_facts(
+            quarterly_df,
+            source_facts,
+        ),
+    ]
+
+    if require_nonnegative:
+        results.append(
+            validate_revenue_nonnegative(quarterly_df)
+        )
+
+    print("\n" + "=" * 60)
+
+    if all(results):
+        print("VALIDATION RESULT: PASS")
+
+        print("Dataset passed all checks.")
+
+        return True
+
+    print("VALIDATION RESULT: FAIL")
+
+    print("One or more validation checks failed.")
+
+    return False
+
+
+def select_direct_quarter_facts(
+        df: pd.DataFrame,
+) -> pd.DataFrame:
+    """
+    Select direct quarter-duration facts.
+    Keep earliest filing.
+    """
+
+    quarterly = df[
+        df["duration_type"] == "quarter"
+    ].copy()
+
+    quarterly = quarterly.sort_values(
+        [
+            "start",
+            "end",
+            "filed",
+        ]
+    )
+
+    quarterly = quarterly.drop_duplicates(
+        subset=[
+            "start",
+            "end",
+        ],
+        keep="first",
+    )
+
+    return quarterly.reset_index(drop=True)
+
+
+def add_calendar_quarter(
+        df: pd.DataFrame,
+) -> pd.DataFrame:
+    """
+    Add economic year and quarter based on the period end date.
+    """
+
+    result = df.copy()
+
+    result["year"] = (
+        result["end"].dt.year
+    )
+
+    result["quarter"] = {
+        "Q"
+        + result["end"]
+        .dt.quarter
+        .astype(str)
+    }
+
+    return result
+
+
+def select_earliest_cumulative_fact(
+        df: pd.DataFrame,
+        duration_type: str,
+) -> pd.DataFrame:
+    """
+    Select the earliest available cumulative fact for each economic year.
+    """
+
+    result = df[
+        df["duration_type"] == "duration_type"
+    ].copy()
+
+    if result.empty:
+        return result
+
+    result["year"] = (
+        result["end"].dt.year
+    )
+
+    result = (
+        result
+        .sort_values(
+            [
+                "year",
+                "filed",
+            ]
+        )
+        .drop_duplicates(
+            subset=["year"],
+            keep="first",
+        )
+        .reset_index(drop=True)
+    )
+
+    return result

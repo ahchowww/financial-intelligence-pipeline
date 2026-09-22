@@ -1,15 +1,75 @@
 import pandas as pd
 
+
 """
-Take SEC duration facts and turn them into one clean revenue value for each quarter. 
+Utilities for converting SEC duration facts into a clean quarterly series.
+
+Designed for duration-based financial metrics such as:
+
+- Revenue
+- Gross Profit
+- Operating Income
+- Net Income
+
+Direct quarterly facts are preferred whenever available.
+
+If a direct quarter is missing, cumulative SEC facts can be used
+to reconstruct it:
+
+Q1 = H1 - Q2
+Q2 = H1 - Q1
+Q3 = 9M - H1
+Q4 = FY - 9M
+
+Note:
+The current year/quarter assignment assumes Tesla's fiscal year
+matches the calendar year.
 """
 
+
+# ============================================================
+# Constants
+# ============================================================
+
+QUARTER_ORDER = {
+    "Q1": 1,
+    "Q2": 2,
+    "Q3": 3,
+    "Q4": 4,
+}
+
+
+QUARTERLY_COLUMNS = [
+    "year",
+    "quarter",
+    "start",
+    "end",
+    "val",
+    "filed",
+    "form",
+    "derived",
+    "source_method",
+]
+
+
+# ============================================================
+# Direct quarter selection
+# ============================================================
+
 def select_direct_quarter_facts(
-        df: pd.DataFrame,
+    df: pd.DataFrame,
 ) -> pd.DataFrame:
     """
-    Select direct single-quarter facts and keep the earliest filing for each period. 
+    Select direct single-quarter SEC facts.
+
+    If the same economic quarter appears in multiple filings,
+    keep the earliest filing.
+
+    This supports point-in-time analysis because later
+    comparative repetitions are not preferred over the
+    earliest available observation.
     """
+
     quarterly = df[
         df["duration_type"] == "quarter"
     ].copy()
@@ -17,28 +77,40 @@ def select_direct_quarter_facts(
     quarterly = quarterly.sort_values(
         by=[
             "start",
-            "end", 
+            "end",
             "filed",
         ]
     )
 
     quarterly = quarterly.drop_duplicates(
         subset=[
-            "start", 
+            "start",
             "end",
         ],
         keep="first",
     )
 
-    return quarterly.reset_index(drop=True)
+    return quarterly.reset_index(
+        drop=True
+    )
 
+
+# ============================================================
+# Calendar quarter assignment
+# ============================================================
 
 def add_calendar_quarter(
-        df: pd.DataFrame,
+    df: pd.DataFrame,
 ) -> pd.DataFrame:
     """
-    Add calendar year and quarter from period end date.
-    # Tesla's fiscal year follows the calendar year
+    Add economic year and calendar quarter based on period end.
+
+    Tesla currently uses a calendar fiscal year, so:
+
+        March 31     -> Q1
+        June 30      -> Q2
+        September 30 -> Q3
+        December 31  -> Q4
     """
 
     result = df.copy()
@@ -48,7 +120,7 @@ def add_calendar_quarter(
     )
 
     result["quarter"] = (
-        "Q" 
+        "Q"
         + result["end"]
         .dt.quarter
         .astype(str)
@@ -56,233 +128,531 @@ def add_calendar_quarter(
 
     return result
 
-def derive_q4_from_annual(
+
+# ============================================================
+# Cumulative fact selection
+# ============================================================
+
+def select_earliest_cumulative_fact(
     df: pd.DataFrame,
+    duration_type: str,
 ) -> pd.DataFrame:
     """
-    Derive Q4 using:
-        Q4 = full-year value - nine-month cumulative value
+    Select the earliest available cumulative fact
+    for each economic year.
 
-    The Q4 filing date is the annual 10-K filing date.
-    """
+    Examples of duration_type:
 
-    # --------------------------------------------------
-    # 1. Get annual and 9-month observations
-    # --------------------------------------------------
-    annual = df[
-        df["duration_type"] == "annual"
-    ].copy()
-
-    nine_month = df[
-        df["duration_type"] == "nine_month"
-    ].copy()
-
-    # --------------------------------------------------
-    # 2. Add economic year
-    # --------------------------------------------------
-    annual["year"] = annual["end"].dt.year
-
-    nine_month["year"] = (
-        nine_month["end"].dt.year
-    )
-
-    # --------------------------------------------------
-    # 3. Keep earliest available fact for each year
-    # --------------------------------------------------
-    annual = (
-        annual
-        .sort_values(
-            by=["year", "filed"]
-        )
-        .drop_duplicates(
-            subset=["year"],
-            keep="first",
-        )
-    )
-
-    nine_month = (
+        half_year
         nine_month
-        .sort_values(
-            by=["year", "filed"]
-        )
-        .drop_duplicates(
-            subset=["year"],
-            keep="first",
-        )
-    )
+        annual
+    """
 
-    # --------------------------------------------------
-    # 4. Match FY and 9M by year
-    # --------------------------------------------------
-    merged = annual.merge(
-        nine_month,
-        on="year",
-        how="inner",
-        suffixes=("_fy", "_9m"),
-    )
-
-    # print("\n=== DEBUG: FY / 9M matches ===")
-
-    if merged.empty:
-        print("No matching FY and 9M years.")
-        return pd.DataFrame()
-
-    print(
-        merged[
-            [
-                "year",
-                "val_fy",
-                "val_9m",
-                "filed_fy",
-                "filed_9m",
-            ]
-        ].to_string(index=False)
-    )
-
-    # --------------------------------------------------
-    # 5. Calculate Q4
-    # --------------------------------------------------
-    merged["val"] = (
-        merged["val_fy"] - merged["val_9m"]
-    )
-
-    merged["quarter"] = "Q4"
-
-    merged["start"] = (
-        merged["end_9m"] + pd.Timedelta(days=1)
-    )
-
-    merged["end"] = merged["end_fy"]
-
-    # Q4 becomes known when the 10-K is filed.
-    merged["filed"] = merged["filed_fy"]
-
-    merged["form"] = merged["form_fy"]
-
-    merged["derived"] = True
-
-    merged["source_method"] = (
-        "fy_minus_9m"
-    )
-
-    # --------------------------------------------------
-    # 6. Return clean Q4 rows
-    # --------------------------------------------------
-    result = merged[
-        [
-            "year",
-            "quarter",
-            "start",
-            "end",
-            "val",
-            "filed",
-            "form",
-            "derived",
-            "source_method",
-        ]
+    result = df[
+        df["duration_type"] == duration_type
     ].copy()
 
-    return result
+    if result.empty:
+        return result
 
-
-def build_quarterly_series(
-        df: pd.DataFrame,
-) -> pd.DataFrame:
-    """
-    Build a complete quarterly series from SEC duration facts.
-
-    Q1-Q3:
-        Prefer directly reported single-quarter facts
-    
-    Q4:
-        Derive from annual - nine_month cummulative value 
-    """
-
-    # 1. Direct quarterly facts
-    direct = select_direct_quarter_facts(df)
-
-    direct = add_calendar_quarter(direct)
-
-    direct["derived"] = False
-    direct["source_method"] = "direct"
-
-    direct = direct[
-        [
-            "year",
-            "quarter",
-            "start",
-            "end",
-            "val",
-            "filed",
-            "form",
-            "derived",
-            "source_method",
-        ]
-    ]
-
-    # 2. Potential derived Q4 facts
-    derived_q4 = derive_q4_from_annual(df)
-
-    # print("\n=== DEBUG: Derived Q4 ===")
-
-    if derived_q4.empty:
-        print("No derived Q4 rows were created.")
-    else:
-        print(
-            derived_q4[
-                [
-                    "year",
-                    "quarter",
-                    "val",
-                    "filed",
-                    "derived",
-                    "source_method",
-                ]
-            ].to_string(index=False)
-        )
-
-    # 3. Only use derived Q4 when direct Q4 does not already exist
-    direct_q4_years = set(
-        direct.loc[
-            direct["quarter"] == "Q4",
-            "year",
-        ]
-    )
-
-    if not derived_q4.empty:
-        derived_q4 = derived_q4[
-            ~derived_q4["year"].isin(
-                direct_q4_years
-            )
-        ]
-
-    # 4. Combine 
-    result = pd.concat(
-        [
-            direct,
-            derived_q4,
-        ],
-        ignore_index=True,
-    )
-
-    quarter_order ={
-        "Q1": 1,
-        "Q2": 2,
-        "Q3": 3,
-        "Q4": 4,
-    }
-
-    result["quarter_number"] = (
-        result["quarter"]
-        .map(quarter_order)
+    result["year"] = (
+        result["end"].dt.year
     )
 
     result = (
         result
         .sort_values(
             by=[
-                "year", 
+                "year",
+                "filed",
+            ]
+        )
+        .drop_duplicates(
+            subset=["year"],
+            keep="first",
+        )
+        .reset_index(drop=True)
+    )
+
+    return result
+
+
+# ============================================================
+# Missing-quarter reconstruction
+# ============================================================
+
+def derive_missing_quarters(
+    df: pd.DataFrame,
+    direct: pd.DataFrame,
+) -> pd.DataFrame:
+    """
+    Reconstruct missing quarterly duration facts.
+
+    Fallback rules:
+
+        Q1 = H1 - Q2
+        Q2 = H1 - Q1
+        Q3 = 9M - H1
+        Q4 = FY - 9M
+
+    Direct quarterly facts always take priority.
+
+    The filing date of a derived quarter is the latest filing
+    date among the facts required to calculate that quarter.
+    This reflects when the derived value first becomes knowable.
+    """
+
+    # --------------------------------------------------------
+    # 1. Select cumulative facts
+    # --------------------------------------------------------
+
+    half_year = select_earliest_cumulative_fact(
+        df,
+        "half_year",
+    )
+
+    nine_month = select_earliest_cumulative_fact(
+        df,
+        "nine_month",
+    )
+
+    annual = select_earliest_cumulative_fact(
+        df,
+        "annual",
+    )
+
+    # --------------------------------------------------------
+    # 2. Build year -> cumulative fact lookup tables
+    # --------------------------------------------------------
+
+    h1_by_year = {
+        int(row["year"]): row
+        for _, row in half_year.iterrows()
+    }
+
+    nine_month_by_year = {
+        int(row["year"]): row
+        for _, row in nine_month.iterrows()
+    }
+
+    annual_by_year = {
+        int(row["year"]): row
+        for _, row in annual.iterrows()
+    }
+
+    # --------------------------------------------------------
+    # 3. Build (year, quarter) -> direct fact lookup
+    # --------------------------------------------------------
+
+    direct_by_quarter = {}
+
+    for _, row in direct.iterrows():
+
+        key = (
+            int(row["year"]),
+            row["quarter"],
+        )
+
+        direct_by_quarter[key] = row
+
+    # --------------------------------------------------------
+    # 4. Find every economic year contained in source facts
+    # --------------------------------------------------------
+
+    years = sorted(
+        df["end"]
+        .dropna()
+        .dt.year
+        .astype(int)
+        .unique()
+    )
+
+    derived_rows = []
+
+    # --------------------------------------------------------
+    # 5. Reconstruct missing quarters year by year
+    # --------------------------------------------------------
+
+    for year in years:
+
+        # Direct quarterly observations
+        q1 = direct_by_quarter.get(
+            (year, "Q1")
+        )
+
+        q2 = direct_by_quarter.get(
+            (year, "Q2")
+        )
+
+        q3 = direct_by_quarter.get(
+            (year, "Q3")
+        )
+
+        q4 = direct_by_quarter.get(
+            (year, "Q4")
+        )
+
+        # Cumulative observations
+        h1 = h1_by_year.get(
+            year
+        )
+
+        nine_month_fact = (
+            nine_month_by_year.get(
+                year
+            )
+        )
+
+        annual_fact = (
+            annual_by_year.get(
+                year
+            )
+        )
+
+        # ====================================================
+        # Q1 fallback
+        #
+        # Q1 = H1 - Q2
+        # ====================================================
+
+        if (
+            q1 is None
+            and q2 is not None
+            and h1 is not None
+        ):
+
+            filed = max(
+                h1["filed"],
+                q2["filed"],
+            )
+
+            derived_rows.append(
+                {
+                    "year": year,
+                    "quarter": "Q1",
+
+                    "start": h1["start"],
+
+                    "end": (
+                        q2["start"]
+                        - pd.Timedelta(days=1)
+                    ),
+
+                    "val": (
+                        h1["val"]
+                        - q2["val"]
+                    ),
+
+                    "filed": filed,
+
+                    "form": h1["form"],
+
+                    "derived": True,
+
+                    "source_method": (
+                        "h1_minus_q2"
+                    ),
+                }
+            )
+
+        # ====================================================
+        # Q2 fallback
+        #
+        # Q2 = H1 - Q1
+        # ====================================================
+
+        if (
+            q2 is None
+            and q1 is not None
+            and h1 is not None
+        ):
+
+            filed = max(
+                h1["filed"],
+                q1["filed"],
+            )
+
+            derived_rows.append(
+                {
+                    "year": year,
+                    "quarter": "Q2",
+
+                    "start": (
+                        q1["end"]
+                        + pd.Timedelta(days=1)
+                    ),
+
+                    "end": h1["end"],
+
+                    "val": (
+                        h1["val"]
+                        - q1["val"]
+                    ),
+
+                    "filed": filed,
+
+                    "form": h1["form"],
+
+                    "derived": True,
+
+                    "source_method": (
+                        "h1_minus_q1"
+                    ),
+                }
+            )
+
+        # ====================================================
+        # Q3 fallback
+        #
+        # Q3 = 9M - H1
+        # ====================================================
+
+        if (
+            q3 is None
+            and h1 is not None
+            and nine_month_fact is not None
+        ):
+
+            filed = max(
+                h1["filed"],
+                nine_month_fact["filed"],
+            )
+
+            derived_rows.append(
+                {
+                    "year": year,
+                    "quarter": "Q3",
+
+                    "start": (
+                        h1["end"]
+                        + pd.Timedelta(days=1)
+                    ),
+
+                    "end": (
+                        nine_month_fact["end"]
+                    ),
+
+                    "val": (
+                        nine_month_fact["val"]
+                        - h1["val"]
+                    ),
+
+                    "filed": filed,
+
+                    "form": (
+                        nine_month_fact["form"]
+                    ),
+
+                    "derived": True,
+
+                    "source_method": (
+                        "nine_month_minus_h1"
+                    ),
+                }
+            )
+
+        # ====================================================
+        # Q4 fallback
+        #
+        # Q4 = FY - 9M
+        # ====================================================
+
+        if (
+            q4 is None
+            and nine_month_fact is not None
+            and annual_fact is not None
+        ):
+
+            filed = max(
+                nine_month_fact["filed"],
+                annual_fact["filed"],
+            )
+
+            derived_rows.append(
+                {
+                    "year": year,
+                    "quarter": "Q4",
+
+                    "start": (
+                        nine_month_fact["end"]
+                        + pd.Timedelta(days=1)
+                    ),
+
+                    "end": (
+                        annual_fact["end"]
+                    ),
+
+                    "val": (
+                        annual_fact["val"]
+                        - nine_month_fact["val"]
+                    ),
+
+                    "filed": filed,
+
+                    "form": (
+                        annual_fact["form"]
+                    ),
+
+                    "derived": True,
+
+                    "source_method": (
+                        "fy_minus_9m"
+                    ),
+                }
+            )
+
+    # --------------------------------------------------------
+    # IMPORTANT:
+    # Return only AFTER every year has been processed.
+    # --------------------------------------------------------
+
+    if not derived_rows:
+
+        return pd.DataFrame(
+            columns=QUARTERLY_COLUMNS
+        )
+
+    return pd.DataFrame(
+        derived_rows,
+        columns=QUARTERLY_COLUMNS,
+    )
+
+
+# ============================================================
+# Main quarterly builder
+# ============================================================
+
+def build_quarterly_series(
+    df: pd.DataFrame,
+) -> pd.DataFrame:
+    """
+    Build the best available quarterly series from SEC
+    duration facts.
+
+    Priority:
+
+        1. Direct quarterly facts
+        2. Derived quarterly facts when direct facts
+           are unavailable
+
+    Direct SEC observations always take priority over
+    reconstructed observations.
+    """
+
+    # --------------------------------------------------------
+    # 1. Select direct quarterly facts
+    # --------------------------------------------------------
+
+    direct = select_direct_quarter_facts(
+        df
+    )
+
+    direct = add_calendar_quarter(
+        direct
+    )
+
+    direct["derived"] = False
+
+    direct["source_method"] = (
+        "direct"
+    )
+
+    direct = direct[
+        QUARTERLY_COLUMNS
+    ].copy()
+
+    # --------------------------------------------------------
+    # 2. Reconstruct missing quarters
+    # --------------------------------------------------------
+
+    derived = derive_missing_quarters(
+        df=df,
+        direct=direct,
+    )
+
+    # --------------------------------------------------------
+    # 3. Combine direct and derived observations
+    # --------------------------------------------------------
+
+    result = pd.concat(
+        [
+            direct,
+            derived,
+        ],
+        ignore_index=True,
+    )
+
+    # Nothing to process.
+    if result.empty:
+
+        result["quarter_number"] = (
+            pd.Series(dtype="Int64")
+        )
+
+        return result
+
+    # --------------------------------------------------------
+    # 4. Add quarter number
+    # --------------------------------------------------------
+
+    result["quarter_number"] = (
+        result["quarter"]
+        .map(QUARTER_ORDER)
+    )
+
+    # --------------------------------------------------------
+    # 5. Direct observations receive higher priority
+    # --------------------------------------------------------
+
+    result["source_priority"] = (
+        result["derived"]
+        .map(
+            {
+                False: 0,
+                True: 1,
+            }
+        )
+    )
+
+    # --------------------------------------------------------
+    # 6. Remove duplicate year-quarter observations
+    #
+    # Direct facts win over derived facts.
+    # --------------------------------------------------------
+
+    result = (
+        result
+        .sort_values(
+            by=[
+                "year",
                 "quarter_number",
+                "source_priority",
+            ]
+        )
+        .drop_duplicates(
+            subset=[
+                "year",
+                "quarter",
+            ],
+            keep="first",
+        )
+    )
+
+    # --------------------------------------------------------
+    # 7. Final chronological ordering
+    # --------------------------------------------------------
+
+    result = (
+        result
+        .sort_values(
+            by=[
+                "year",
+                "quarter_number",
+            ]
+        )
+        .drop(
+            columns=[
+                "source_priority",
             ]
         )
         .reset_index(drop=True)
