@@ -64,10 +64,6 @@ def select_direct_quarter_facts(
 
     If the same economic quarter appears in multiple filings,
     keep the earliest filing.
-
-    This supports point-in-time analysis because later
-    comparative repetitions are not preferred over the
-    earliest available observation.
     """
 
     quarterly = df[
@@ -106,7 +102,6 @@ def add_calendar_quarter(
     Add economic year and calendar quarter based on period end.
 
     Tesla currently uses a calendar fiscal year, so:
-
         March 31     -> Q1
         June 30      -> Q2
         September 30 -> Q3
@@ -138,11 +133,9 @@ def select_earliest_cumulative_fact(
     duration_type: str,
 ) -> pd.DataFrame:
     """
-    Select the earliest available cumulative fact
-    for each economic year.
+    Select the earliest available cumulative fact for each economic year.
 
     Examples of duration_type:
-
         half_year
         nine_month
         annual
@@ -189,7 +182,6 @@ def derive_missing_quarters(
     Reconstruct missing quarterly duration facts.
 
     Fallback rules:
-
         Q1 = H1 - Q2
         Q2 = H1 - Q1
         Q3 = 9M - H1
@@ -330,28 +322,17 @@ def derive_missing_quarters(
                 {
                     "year": year,
                     "quarter": "Q1",
-
                     "start": h1["start"],
-
                     "end": (
-                        q2["start"]
-                        - pd.Timedelta(days=1)
+                        q2["start"] - pd.Timedelta(days=1)
                     ),
-
                     "val": (
-                        h1["val"]
-                        - q2["val"]
+                        h1["val"] - q2["val"]
                     ),
-
                     "filed": filed,
-
                     "form": h1["form"],
-
                     "derived": True,
-
-                    "source_method": (
-                        "h1_minus_q2"
-                    ),
+                    "source_method": ("h1_minus_q2"),
                 }
             )
 
@@ -376,28 +357,17 @@ def derive_missing_quarters(
                 {
                     "year": year,
                     "quarter": "Q2",
-
                     "start": (
-                        q1["end"]
-                        + pd.Timedelta(days=1)
+                        q1["end"] + pd.Timedelta(days=1)
                     ),
-
                     "end": h1["end"],
-
                     "val": (
-                        h1["val"]
-                        - q1["val"]
+                        h1["val"] - q1["val"]
                     ),
-
                     "filed": filed,
-
                     "form": h1["form"],
-
                     "derived": True,
-
-                    "source_method": (
-                        "h1_minus_q1"
-                    ),
+                    "source_method": ("h1_minus_q1"),
                 }
             )
 
@@ -422,32 +392,19 @@ def derive_missing_quarters(
                 {
                     "year": year,
                     "quarter": "Q3",
-
                     "start": (
-                        h1["end"]
-                        + pd.Timedelta(days=1)
+                        h1["end"] + pd.Timedelta(days=1)
                     ),
-
-                    "end": (
-                        nine_month_fact["end"]
-                    ),
-
+                    "end": (nine_month_fact["end"]),
                     "val": (
-                        nine_month_fact["val"]
-                        - h1["val"]
+                        nine_month_fact["val"] - h1["val"]
                     ),
-
                     "filed": filed,
-
                     "form": (
                         nine_month_fact["form"]
                     ),
-
                     "derived": True,
-
-                    "source_method": (
-                        "nine_month_minus_h1"
-                    ),
+                    "source_method": ("nine_month_minus_h1"),
                 }
             )
 
@@ -472,32 +429,21 @@ def derive_missing_quarters(
                 {
                     "year": year,
                     "quarter": "Q4",
-
                     "start": (
-                        nine_month_fact["end"]
-                        + pd.Timedelta(days=1)
+                        nine_month_fact["end"] + pd.Timedelta(days=1)
                     ),
-
                     "end": (
                         annual_fact["end"]
                     ),
-
                     "val": (
-                        annual_fact["val"]
-                        - nine_month_fact["val"]
+                        annual_fact["val"] - nine_month_fact["val"]
                     ),
-
                     "filed": filed,
-
                     "form": (
                         annual_fact["form"]
                     ),
-
                     "derived": True,
-
-                    "source_method": (
-                        "fy_minus_9m"
-                    ),
+                    "source_method": ("fy_minus_9m"),
                 }
             )
 
@@ -526,17 +472,14 @@ def build_quarterly_series(
     df: pd.DataFrame,
 ) -> pd.DataFrame:
     """
-    Build the best available quarterly series from SEC
-    duration facts.
+    Build the best available quarterly series from SEC duration facts.
 
-    Priority:
-
+    Priority
         1. Direct quarterly facts
         2. Derived quarterly facts when direct facts
            are unavailable
 
-    Direct SEC observations always take priority over
-    reconstructed observations.
+    Direct SEC observations always take priority over reconstructed observations.
     """
 
     # --------------------------------------------------------
@@ -584,7 +527,6 @@ def build_quarterly_series(
 
     # Nothing to process.
     if result.empty:
-
         result["quarter_number"] = (
             pd.Series(dtype="Int64")
         )

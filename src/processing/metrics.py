@@ -30,4 +30,12 @@ NORMALIZED_METRICS = {
         "fact_type": "duration",
         "nonnegative_expected": False,
     },
+
+    "cash": {
+        "display_name": "Cash and Cash Equivalents",
+        "primary_concept": "CashAndCashEquivalentsAtCarryingValue",
+        "unit": "USD",
+        "fact_type": "instant",
+        "nonnegative_expected": True,
+    },
 }
