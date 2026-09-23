@@ -38,4 +38,28 @@ NORMALIZED_METRICS = {
         "fact_type": "instant",
         "nonnegative_expected": True,
     },
+
+    "inventory": {
+        "display_name": "Inventory",
+        "primary_concept": "InventoryNet",
+        "unit": "USD",
+        "fact_type": "instant",
+        "nonnegative_expected": True,
+    },
+
+    "total_assets": {
+        "display_name": "Total Assets",
+        "primary_concept": "Assets",
+        "unit": "USD",
+        "fact_type": "instant",
+        "nonnegative_expected": True,
+    },
+
+    "total_liabilities": {
+        "display_name": "Total Liabilities",
+        "primary_concept": "Liabilities",
+        "unit": "USD",
+        "fact_type": "instant",
+        "nonnegative_expected": True,
+    },
 }
