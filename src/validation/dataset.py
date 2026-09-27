@@ -169,6 +169,7 @@ def validate_quarter_metadata(
 
     return True
 
+
 def validate_chronological_order(
         df: pd.DataFrame,
         dataset_name: str,
