@@ -52,10 +52,13 @@ def select_ridge_alpha(
         fold_maes = []
 
         for (train_indices, validation_indices) in splitter.split(x):
+
+            # Gets the earlier training part
             x_fold_train = x.iloc[train_indices]
 
             y_fold_train = y.iloc[train_indices]
 
+            # Gets the later validation fold  
             x_fold_validation = x.iloc[validation_indices]
 
             y_fold_validation = y.iloc[validation_indices]
