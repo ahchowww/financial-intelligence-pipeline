@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 
 from src.processing.features import(
     build_financial_training_dataset,
@@ -28,6 +29,13 @@ from src.modeling.ridge import(
 
 from src.modeling.metrics import(
     calculate_forecast_metrics,
+)
+
+from src.modeling.gradient_boosting import(
+    train_gradient_boosting_growth_model,
+    predict_gradient_boosting_growth,
+    train_gradient_boosting_log_growth_model,
+    predict_gradient_boosting_log_growth,
 )
 
 DATA_PATH = "data/processed/tsla_quarterly_modeling.csv"
@@ -81,6 +89,8 @@ def main() -> None:
 
     forecast_rows = []
     multivariate_ridge_predictions = []
+    gradient_boosting_growth_predictions = []
+    gradient_boosting_log_growth_predictions = []
 
     # 3. Expanding-window backtest
     for index in range(MIN_TRAIN_SIZE, len(train)):
@@ -155,6 +165,34 @@ def main() -> None:
             ).iloc[0]
         )
 
+        # Gradient Boosting - Growth Target
+        gradient_boosting_growth_model = train_gradient_boosting_growth_model(history)
+        
+        predicted_growth = float(
+            predict_gradient_boosting_growth(
+                gradient_boosting_growth_model,
+                current,
+            ).iloc[0]
+        )
+
+        gradient_boosting_growth_prediction = float(
+            current["revenue"].iloc[0] * (1 + predicted_growth)
+        )
+
+        # Gradient Boosting - Log Growth Target
+        gradient_boosting_log_growth_model = train_gradient_boosting_log_growth_model(history)
+        
+        predicted_log_growth = float(
+            predict_gradient_boosting_log_growth(
+                gradient_boosting_log_growth_model,
+                current,
+            ).iloc[0]
+        )
+
+        gradient_boosting_log_growth_prediction = float(
+            current["revenue"].iloc[0] * np.exp(predicted_log_growth)
+        )
+
 
         # Save
         actual_values.append(actual)
@@ -164,6 +202,9 @@ def main() -> None:
         linear_predictions.append(linear_prediction)
         ridge_predictions.append(ridge_prediction)
         multivariate_ridge_predictions.append(multivariate_ridge_prediction)
+        gradient_boosting_growth_predictions.append(gradient_boosting_growth_prediction)
+        gradient_boosting_log_growth_predictions.append(gradient_boosting_log_growth_prediction)
+
 
         forecast_rows.append(
             {
@@ -182,6 +223,10 @@ def main() -> None:
                 "ridge_alpha": best_alpha,
                 "multivariate_ridge": multivariate_ridge_prediction,
                 "multivariate_best_alpha": multivariate_best_alpha,
+                "gradient_boosting_growth": gradient_boosting_growth_prediction,
+                "predicted_growth": predicted_growth,
+                "gradient_boosting_log_growth": gradient_boosting_log_growth_prediction,
+                "predicted_log_growth": predicted_log_growth,
             }
         )
 
@@ -193,6 +238,8 @@ def main() -> None:
         "Linear Regression": linear_predictions,
         "Ridge Regression": ridge_predictions,
         "Multivariate Ridge": multivariate_ridge_predictions,
+        "Gradient Boosting Growth": gradient_boosting_growth_predictions,
+        "Gradient Boosting Log Growth": gradient_boosting_log_growth_predictions,
     }
 
     summary_rows = []

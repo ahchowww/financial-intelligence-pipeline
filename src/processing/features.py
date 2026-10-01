@@ -36,6 +36,17 @@ COMPACT_FINANCIAL_FEATURE_COLUMNS = [
     "liabilities_to_assets",
 ]
 
+GROWTH_FEATURE_COLUMNS = [
+    "revenue_qoq_growth",
+    "revenue_yoy_growth",
+    "gross_margin",
+    "operating_margin",
+    "net_margin",
+    "cash_to_assets",
+    "inventory_to_assets",
+    "liabilities_to_assets",
+]
+
 
 def build_revenue_forecasting_features(
         df: pd.DataFrame,
@@ -233,6 +244,26 @@ def build_financial_forecasting_features(
 
     result["target_quarter_end"] = result["quarter_end"].shift(-1)
 
+    # 7. Next-quarter revenue growth target
+    # measures how much next-quarter revenue changes relative to current quarter
+    result["target_revenue_growth"] = (
+        result["target_revenue"] / result["revenue"] - 1
+    )
+
+    revenue_ratio = result["target_revenue"] / result["revenue"]
+
+    result["target_log_revenue_growth"] = pd.Series(
+        np.nan,
+        index=result.index,
+        dtype=float,
+    )
+
+    positive_ratio = (revenue_ratio > 0)
+
+    result.loc[positive_ratio, "target_log_revenue_growth"] = np.log(
+        revenue_ratio.loc[positive_ratio]
+    )
+
     return result
 
 
@@ -258,6 +289,8 @@ def build_financial_training_dataset(
         + 
         [
             "target_revenue",
+            "target_revenue_growth",
+            "target_log_revenue_growth",
             "target_quarter_end",
             "available_date",
         ]
