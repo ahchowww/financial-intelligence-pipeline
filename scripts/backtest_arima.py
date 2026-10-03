@@ -1,0 +1,194 @@
+import pandas as pd
+
+from src.processing.features import(
+    build_financial_training_dataset,
+)
+
+from src.modeling.split import(
+    chronological_train_val_test_split,
+)
+
+from src.modeling.baselines import(
+    naive_revenue_forecast,
+)
+
+from src.modeling.statistical import(
+    train_arima_model,
+    predict_arima_next_quarter,
+)
+
+from src.modeling.metrics import(
+    calculate_forecast_metrics,
+)
+
+DATA_PATH = "data/processed/tsla_quarterly_modeling.csv"
+
+MIN_TRAIN_SIZE = 20
+
+ARIMA_ORDER =(
+    1,
+    1,
+    1,
+)
+
+
+def main() -> None:
+    df = pd.read_csv(
+        DATA_PATH,
+        parse_dates=[
+            "quarter_end",
+            "available_date",
+        ]
+    )
+
+    training = build_financial_training_dataset(df)
+
+    train, validation, test = chronological_train_val_test_split(training)
+
+    # only use original training data for backtesting
+    print("\n" + "=" * 60)
+    print("ARIMA(1, 1, 1) WALK-FORWARD BACKTEST")
+    print("=" * 60)
+
+    print(f"Training rows available: {len(train)}")
+    print(f"Initial training rows: {MIN_TRAIN_SIZE}")
+
+    print(
+        f"Forecast origins: "
+        f"{len(train) - MIN_TRAIN_SIZE}"
+    )
+
+    actual_values = []
+    naive_predictions = []
+    arima_predictions = []
+
+    forecast_rows = []
+
+
+    # Walk-forward backtest
+    for index in range(MIN_TRAIN_SIZE, len(train)):
+        current = train.iloc[[index]].copy()
+
+        actual = float(
+            current["target_revenue"].iloc[0]
+        )
+
+
+        # Naive forecast
+        naive_prediction = float(
+            naive_revenue_forecast(
+                current
+            ).iloc[0]
+        )
+
+        # ARIMA forecast
+        # At this forecast origin, current-quarter revenue is already known.
+        # So, ARIMA is trained using all revenue observations up to and 
+        # including current quarter.
+        revenue_history = train.iloc[:index+1]["revenue"].copy()
+
+        arima_model = train_arima_model(
+            revenue_series=revenue_history,
+            order=ARIMA_ORDER,
+        )
+
+        arima_prediction = predict_arima_next_quarter(
+            arima_model
+        )
+
+
+        # Save result
+        actual_values.append(actual)
+        naive_predictions.append(naive_prediction)
+        arima_predictions.append(arima_prediction)
+
+        forecast_rows.append(
+            {
+                "feature_quarter": (
+                    str(current["year"].iloc[0]) + current["quarter"].iloc[0]
+                ),
+                "target_quarter_end": current["target_quarter_end"].iloc[0],
+                "actual_revenue": actual,
+                "naive_prediction": naive_prediction,
+                "arima_prediction": arima_prediction,
+                "history_rows": len(revenue_history),
+            }
+        )
+
+    # Evaluate
+    prediction_sets = {
+        "Naive": naive_predictions,
+        "ARIMA(1,1,1)": arima_predictions,
+    }
+
+    summary_rows = []
+
+    for model_name, predictions in prediction_sets.items():
+        metrics = calculate_forecast_metrics(
+            actual=actual_values,
+            predicted=predictions,
+        )
+
+        summary_rows.append(
+            {
+                "model": model_name,
+                "MAE": metrics["MAE"],
+                "RMSE": metrics["RMSE"],
+                "MAPE": metrics["MAPE"],
+                "SMAPE": metrics["SMAPE"],
+            }
+        )
+
+    summary = (
+        pd.DataFrame(
+            summary_rows
+        )
+        .sort_values(
+            "MAE"
+        )
+        .reset_index(
+            drop=True
+        )
+    )
+
+    display = summary.copy()
+
+    display["MAE"] = display["MAE"].map(
+        lambda value: f"${value:,.2f}"
+    )
+
+    display["RMSE"] = display["RMSE"].map(
+        lambda value: f"${value:,.2f}"
+    )
+
+    display["MAPE"] = display["MAPE"].map(
+        lambda value: f"{value:.2f}%"
+    )
+
+    display["SMAPE"] = display["SMAPE"].map(
+        lambda value: f"{value:.2f}%"
+    )
+
+    print("\n" + "=" * 60)
+    print("BACKTEST RESULTS")
+    print("=" * 60)
+
+    print(
+        display.to_string(index=False)
+    )
+
+    # individual forecasts
+    print("\n" + "=" * 60)
+    print("INDIVIDUAL FORECASTS")
+    print("=" * 60)
+
+    print(
+        pd.DataFrame(
+            forecast_rows
+        ).to_string(index=False)
+    )
+
+
+if __name__ == "__main__":
+    main()
+  
