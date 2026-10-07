@@ -82,7 +82,7 @@ def extract_10q_mda(
     # 1. Find all Item 2 and Item 3 occurrences
     item2_matches = list(
         re.finditer(
-            r"\bitem\s*2\s*\.?",
+            r"\bi\s*tem\s*2\s*\.?",
             text,
             flags=re.IGNORECASE,
         )
@@ -90,7 +90,7 @@ def extract_10q_mda(
 
     item3_matches = list(
         re.finditer(
-            r"\bitem\s*3\s*\.?",
+            r"\bi\s*tem\s*3\s*\.?",
             text,
             flags=re.IGNORECASE,
         )
@@ -112,17 +112,22 @@ def extract_10q_mda(
             )
         )
 
+        compact_nearby = re.sub(
+            r"\s+",
+            "",
+            nearby,
+        )
+
         if (
-            "management" in nearby
-            and
-            "discussion and analysis"
-            in nearby
-            and
-            "financial condition" in nearby
-        ):
-            mda_starts.append(
-                position
+            (
+                "management'sdiscussionandanalysis" in compact_nearby
             )
+            and
+            (
+                "financialcondition"in compact_nearby
+            )
+        ):
+            mda_starts.append(position)
 
     if not mda_starts:
         raise ValueError(
@@ -137,20 +142,24 @@ def extract_10q_mda(
         position = match.start()
 
         nearby = (
-            text[position:position + 250]
+            text[position:position + 300]
             .lower()
         )
 
+        compact_nearby = re.sub(
+            r"\s+",
+            "",
+            nearby,
+        )
+
         if (
-            "quantitative" in nearby
+            "quantitative" in compact_nearby
             and
-            "qualitative" in nearby
+            "qualitative" in compact_nearby
             and
-            "market risk" in nearby
+            "marketrisk" in compact_nearby
         ):
-            item3_ends.append(
-                position
-            )
+            item3_ends.append(position)
 
     if not item3_ends:
         raise ValueError(
@@ -252,7 +261,7 @@ def extract_10k_mda(
     # 1. Find every Item 7 and Item 7A occurrence
     item7_matches = list(
         re.finditer(
-            r"\bitem\s*7\s*\.?",
+            r"\bi\s*tem\s*7(?!\s*a)\s*\.?",
             text,
             flags=re.IGNORECASE,
         )
@@ -260,7 +269,7 @@ def extract_10k_mda(
 
     item7a_matches = list(
             re.finditer(
-                r"\bitem\s*7a\s*\.?",
+                r"\bi\s*tem\s*7\s*a\s*\.?",
                 text,
                 flags=re.IGNORECASE,
             )
@@ -281,12 +290,16 @@ def extract_10k_mda(
             )
         )
 
+        compact_nearby = re.sub(
+            r"\s+",
+            "",
+            nearby,
+        )
+
         if (
-            "management" in nearby
+            "management'sdiscussionandanalysis" in compact_nearby
             and
-            "discussion and analysis" in nearby
-            and
-            "financial condition" in nearby
+            "financialcondition" in compact_nearby
         ):
             mda_starts.append(position)
 
@@ -302,16 +315,22 @@ def extract_10k_mda(
         position = match.start()
 
         nearby = (
-            text[position: position + 250]
+            text[position: position + 300]
             .lower()
         )
 
+        compact_nearby = re.sub(
+            r"\s+",
+            "",
+            nearby,
+        )
+
         if (
-            "quantitative" in nearby
+            "quantitative" in compact_nearby
             and
-            "qualitative" in nearby
+            "qualitative" in compact_nearby
             and
-            "market risk" in nearby
+            "marketrisk" in compact_nearby
         ):
             item7a_ends.append(position)
 
@@ -412,3 +431,73 @@ def extract_mda(
     raise ValueError(
         f"Unsupported filing form: {form}"
     )
+
+
+def clean_mda_dataset(
+        text: str,
+) -> str:
+    """
+    Clean an extracted MD&A section while preserving its 
+    actual financial metadata.
+    
+    Removes: 
+    - non-breaking spaces
+    - standalone table of contents
+    - page numbers directly adjacent to TOC
+    - excessive white space
+    """
+
+    # 1. Normalize non-breaking spaces
+    text = text.replace(
+        "\xa0",
+        " ",
+    )
+
+    # 2. Strip lines and remove empty lines
+    lines = [
+        line.strip()
+        for line in text.splitlines()
+        if line.strip()
+    ]
+
+    cleaned_lines = []
+
+    # 3. Remove SEC navigation artifacts safely
+    for index, line in enumerate(lines):
+        lower_line = line.lower()
+
+        # remove standalone navigation text
+        if (lower_line == "table of contents"):
+            continue
+
+        # only treat a number as a page number
+        # when directly adjacent to TOC
+        if re.fullmatch(
+            r"\d{1,3}",
+            line,
+        ):
+            previous_is_toc = (
+                index > 0
+                and
+                lines[index-1].lower()
+                == "table of contents"
+            )
+
+            next_is_toc = (
+                index+1 < len(lines)
+                and 
+                lines[index+1].lower()
+                == "table of contents"
+            )
+
+            if (previous_is_toc or next_is_toc):
+                continue
+
+        cleaned_lines.append(line)
+            
+    # 4. Join cleaned lines
+    cleaned_text = "\n".join(
+        cleaned_lines
+    )
+
+    return cleaned_text
