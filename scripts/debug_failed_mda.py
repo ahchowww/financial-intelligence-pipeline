@@ -12,6 +12,11 @@ FILING_PATH = Path(
     "tsla-10q_20170331.htm"
 )
 
+"""
+Main Idea:
+1. Take one problematic filing, convert to clean text.
+2. Search broadly for MD&A related phases & Item 2 / Item 3 headings.
+"""
 
 def show_matches(
         text: str,

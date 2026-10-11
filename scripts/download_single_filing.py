@@ -50,6 +50,7 @@ def main() -> None:
     # filing_url -> use to download the document
     filing_url = row["filing_url"]
 
+
     # 3. Build local output path
     accession_no_dashes = accession_number.replace(
         "-",

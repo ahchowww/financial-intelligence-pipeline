@@ -15,6 +15,14 @@ FILLINGS_DIR = Path(
     "data/raw/filings"
 )
 
+"""
+Main Purpose:
+1. Go through every original Tesla 10-Q & 10-K.
+2. Verify the local filing exists.
+3. Extract the MD&A again.
+4. Record which filings succeed or fail.
+5. Inspect extraction sizes to catch suspicious result.
+"""
 
 def main() -> None:
     # 1. Load metadata

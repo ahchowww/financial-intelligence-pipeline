@@ -6,6 +6,11 @@ METADATA_PATH = Path(
     "data/processed/tsla_mda_clean_metadata.csv"
 )
 
+"""
+Check that the cleaned dataset is complete, internally consistent, 
+not duplicated, not over-cleaned, still starts like a real MD&A section,
+and preserves correct filing chronology.
+"""
 
 def main() -> None:
     # 1. Load metadata

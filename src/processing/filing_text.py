@@ -112,6 +112,9 @@ def extract_10q_mda(
             )
         )
 
+        # remove all whitespace
+        # e.g. Management's Discussion and Analysis of Financial Condition
+        # -> management'sdiscussionandanalysisoffinancialcondition
         compact_nearby = re.sub(
             r"\s+",
             "",
@@ -233,9 +236,7 @@ def extract_10q_mda(
     best_candidate = max(
         substantial_candidates,
         key=lambda candidate:
-        candidate[
-            "length"
-        ],
+            candidate["length"],
     )
 
     return best_candidate["text"]
@@ -396,7 +397,7 @@ def extract_10k_mda(
     best_candidate = max(
         substantial_candidates,
         key=lambda candidate:
-        candidate["length"],
+            candidate["length"],
     )
 
     return best_candidate["text"]
@@ -479,15 +480,13 @@ def clean_mda_dataset(
             previous_is_toc = (
                 index > 0
                 and
-                lines[index-1].lower()
-                == "table of contents"
+                lines[index-1].lower() == "table of contents"
             )
 
             next_is_toc = (
                 index+1 < len(lines)
                 and 
-                lines[index+1].lower()
-                == "table of contents"
+                lines[index+1].lower() == "table of contents"
             )
 
             if (previous_is_toc or next_is_toc):

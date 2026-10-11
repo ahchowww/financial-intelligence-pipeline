@@ -9,6 +9,14 @@ MDA_PATH = Path(
     "000119312511221497_mda.txt"
 )
 
+"""
+Main Idea:
+1. Take one already-extracted raw MD&A .txt file.
+2. Run clean_mda_dataset() on it.
+3. Compare the raw vs cleaned size.
+4. Print out summary.
+### Confirm that cleaning removed unwanted noise without damaging useful MD&A content
+"""
 
 def main() -> None:
     raw_text = MDA_PATH.read_text(

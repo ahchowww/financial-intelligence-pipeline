@@ -52,13 +52,14 @@ def main() -> None:
             + "_"
             + row["primary_document"]
         ),
-        axis=1,
+        axis=1,   # apply this function row by row
     )
 
     # 4. Check which filings already exists
+    #    Ask: Does this file currently exist?
     originals["downloaded"] = originals["local_path"].apply(
         lambda path:
-        Path(path).exists()
+            Path(path).exists()
     )
 
     downloaded_count = int(

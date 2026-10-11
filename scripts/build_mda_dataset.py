@@ -23,6 +23,13 @@ OUTPUT_METADATA_PATH = Path(
     "data/processed/tsla_mda_metadata.csv"
 )
 
+"""
+Main idea:
+1. For every downloaded original Tesla 10-Q & 10-K, extract full filing text.
+2. Extract MD&A section.
+3. Save each MD&A as its own .txt file.
+4. Build a metadata CSV for the resulting MD&A dataset.
+"""
 
 def main() -> None:
     # 1. Load filing metadata
@@ -122,7 +129,7 @@ def main() -> None:
 
         print(
             f"[{index + 1} / {total}] "
-            f"{row['report_date'].date()}"
+            f"{row['report_date'].date()} "
             f"{row['form']} "
             f"-> {len(mda):,} chars"
         )

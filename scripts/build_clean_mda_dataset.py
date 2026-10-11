@@ -18,6 +18,15 @@ OUTPUT_METADATA_PATH = Path(
     "data/processed/tsla_mda_clean_metadata.csv"
 )
 
+"""
+Main Idea:
+1. Read every raw MD&A file listed in tsla_mda_metadata.csv.
+2. Apply clean_mda_dataset() to each one.
+3. Save the cleaned version into a new folder, and create a new metadata CSV
+   describing the cleaned dataset.
+
+### apply the same cleaning to all files.
+"""
 
 def main() -> None:
     # 1. Load MD&A metadata
@@ -75,6 +84,7 @@ def main() -> None:
             encoding="utf-8",
         )
 
+        # Convert the existing metadata row into dictionary
         record = row.to_dict()
 
         record["clean_mda_path"] = str(clean_path)

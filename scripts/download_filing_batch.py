@@ -13,7 +13,7 @@ METADATA_PATH = Path(
     "data/raw/tsla_filings.csv"
 )
 
-FILLINGS_DIR = Path(
+FILINGS_DIR = Path(
     "data/raw/filings"
 )
 
@@ -52,7 +52,7 @@ def main() -> None:
         )
     )
 
-    FILLINGS_DIR.mkdir(
+    FILINGS_DIR.mkdir(
         parents=True,
         exist_ok=True,
     )
@@ -82,7 +82,7 @@ def main() -> None:
         primary_document = row["primary_document"]
 
         output_path = (
-            FILLINGS_DIR 
+            FILINGS_DIR 
             / (
                 f"{accession_no_dashes}_"
                 f"{primary_document}"
